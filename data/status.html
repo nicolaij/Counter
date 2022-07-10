@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Bender</title>
+
+	<style>
+		h1 {
+			font-family: Verdana, Geneva, Tahoma, sans-serif;
+		}
+
+		input {
+			width: 10em;
+			text-align: right;
+		}
+	</style>
+
+</head>
+
+<body>
+	<table>
+		<tbody>
+			<tr>
+				<td style="text-align: right;">
+					<h1>Позиция:</h1>
+				</td>
+				<td style="text-align: left;">
+					<h1 id="position">0</h1>
+				</td>
+			</tr>
+			<tr>
+				<td style="text-align: right;">
+					<h1>Задание:</h1>
+				</td>
+				<td style="text-align: left;">
+					<h1 id="target">0</h1>
+				</td>
+			</tr>
+			<tr>
+				<td style="text-align: right;">
+					<h1>Нагрузка:</h1>
+				</td>
+				<td style="text-align: left;">
+					<h1 id="load">0</h1>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	<p id="status_text" style="font-weight: bold;">
+		`STATUS_TEXT`
+	</p>
+	<hr />
+	<form>
+		<table>
+			<thead>
+				<tr>
+					<td></td>
+					<td><b>Скорость</b></td>
+					<td><b>Позиция</b></td>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>Z</td>
+					<td>
+						<input type="number" id="speedz" name="speedz" value="`SPEEDZ`">
+					</td>
+					<td>
+						<input type="number" id="posz" name="posz" value="`POSZ`">
+					</td>
+				</tr>
+				<tr>
+					<td>Шаг&nbsp;1</td>
+					<td>
+						<input type="number" id="speed1" name="speed1" value="`SPEED1`">
+					</td>
+					<td>
+						<input type="number" id="pos1" name="pos1" value="`POS1`">
+					</td>
+				</tr>
+				<tr>
+					<td>Шаг&nbsp;2</td>
+					<td>
+						<input type="number" id="speed2" name="speed2" value="`SPEED2`">
+					</td>
+					<td>
+						<input type="number" id="pos2" name="pos2" value="`POS2`">
+					</td>
+				</tr>
+				<tr>
+					<td>Шаг&nbsp;3</td>
+					<td>
+						<input type="number" id="speed3" name="speed3" value="`SPEED3`">
+					</td>
+					<td>
+						<input type="number" id="pos3" name="pos3" value="`POS3`">
+					</td>
+				</tr>
+			</tbody>
+		</table>
+		<p><input type="submit" style="text-align: center;"></p>
+	</form>
+
+	<script>
+		var socket = new WebSocket("ws://" + location.host + "/ws");
+		socket.onopen = function () {
+			socket.send(JSON.stringify({ text: '?' }));
+		};
+		socket.onmessage = function (e) {
+			var j = JSON.parse(e.data, function (key, value) {
+				document.getElementById(key).innerHTML = value;
+			});
+		};
+	</script>
+</body>
+</html>
