@@ -3,10 +3,12 @@
 #include "synctime.h"
 #include "network.h"
 
-#include <sys/time.h>
+#include <coredecls.h>  // settimeofday_cb()
+#include <time.h>
+#include "sys/time.h"
 
-#define SDA_PIN 21
-#define SCL_PIN 22
+#define SDA_PIN D2
+#define SCL_PIN D1
 
 #define countof(a) (sizeof(a) / sizeof(a[0]))
 
@@ -25,18 +27,52 @@ RTC_DS1307 rtc;
 // }
 
 #include "extEEPROM.h"
-extEEPROM myEEPROM(kbits_32, 1, 32, 0x50);
+#define EESIZE kbits_32
+extEEPROM myEEPROM(EESIZE, 1, 32, 0x50);
 
 eeprom_block_t ee;
 
 unsigned int num_ee_block;
+
+bool getLocalTime(struct tm * info, uint32_t ms = 5000)
+{
+    uint32_t start = millis();
+    time_t now;
+    while((millis()-start) <= ms) {
+        time(&now);
+        localtime_r(&now, info);
+        if(info->tm_year > (2016 - 1900)){
+            return true;
+        }
+        delay(10);
+    }
+    return false;
+}
+
+#define PTM(w) \
+  Serial.print(" " #w "="); \
+  Serial.print(tm->tm_##w);
+
+void printTm(const char* what, const tm* tm) {
+  Serial.print(what);
+  PTM(isdst);
+  PTM(yday);
+  PTM(wday);
+  PTM(year);
+  PTM(mon);
+  PTM(mday);
+  PTM(hour);
+  PTM(min);
+  PTM(sec);
+}
+
 
 void synctime::begin()
 {
 
   configTzTime("UTC-3", "pool.ntp.org", "time.windows.com", "time.nist.gov");
 
-  Wire.begin(SDA_PIN, SCL_PIN, 100000U);
+  Wire.begin(SDA_PIN, SCL_PIN);
 
   myEEPROM.begin(extEEPROM::twiClock100kHz, &Wire);
 
@@ -131,7 +167,9 @@ void printLocalTime()
     Serial.println(F(" Failed to obtain time"));
     return;
   }
-  Serial.println(&timeinfo, " %d %B %Y %H:%M:%S ");
+  //Serial.println(&timeinfo, " %d %B %Y %H:%M:%S ");
+  //Serial.printf(" %d %B %Y %H:%M:%S ", &timeinfo);
+  printTm("localtime:", &timeinfo);
 }
 
 uint8_t get_ee_data(eeprom_block_t *eep, int num = 0)
@@ -170,7 +208,12 @@ uint8_t inc_ee_data()
     eep->today.date.month = c_date.month;
     eep->today.date.year2k = c_date.year2k;
     eep->today.counter = 1;
-  }
+    num_ee_block++;
+    if ((unsigned long)(num_ee_block + 1) * sizeof(eeprom_block_t) > EESIZE * 1024UL / 8)
+    {
+      num_ee_block = 0;
+    }
+   }
 
   eep->total++;
   return myEEPROM.write((unsigned long)num_ee_block * sizeof(eeprom_block_t), (byte *)eep, sizeof(eeprom_block_t));
@@ -180,7 +223,7 @@ int init_ee_data()
 {
   int n = 0;
   int tc = 0;
-  int tt = 0;
+  uint32_t tt = 0;
   // eeprom_block_t eeb;
 
   time_t now;
@@ -218,7 +261,7 @@ int init_ee_data()
   };
 
   //если дошли до конца eeprom
-  if (n >= 4096 / sizeof(eeprom_block_t))
+  if (n >= EESIZE * 1024UL / 8 / sizeof(eeprom_block_t))
   {
     n = 0;
   }

@@ -1,13 +1,13 @@
 #include "network.h"
-
-#include <WiFi.h>
-#include <ESPmDNS.h>
-#include <ArduinoOTA.h>
-#include <Update.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+//#include <ArduinoOTA.h>
+#include "LittleFS.h" // LittleFS is declared
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include <SPIFFSEditor.h>
-#include <ESPmDNS.h>
+
+#include <AsyncElegantOTA.h>
 
 #include "synctime.h"
 
@@ -20,7 +20,7 @@ AsyncEventSource events("/events");
 // flag to use from web update to reboot the ESP
 bool shouldReboot = false;
 
-const char *hostName = "Woody";
+const char *hostName = "Counter";
 
 #define CONFIG_FILE "/config.json"
 
@@ -290,24 +290,24 @@ void set_status(const char *text)
 void net_setup()
 {
 
-  if (SPIFFS.begin(true /*formatOnFail*/))
+  if (LittleFS.begin())
   {
-    Serial.println("mounted SPIFFS file system");
-
-    size_t totalBytes = SPIFFS.totalBytes() / 1024;
-    Serial.printf("SPIFFS file system Size: %zukB\n", totalBytes);
+    Serial.println("mounted file system");
+    FSInfo fs_info;
+    LittleFS.info(fs_info);
+    Serial.printf("file system Size: %zukB, Used:%zukB\n", fs_info.totalBytes / 1024, fs_info.usedBytes / 1024);
   }
   else
   {
     Serial.println("failed to mount SPIFS");
   }
 
-  if (SPIFFS.exists(CONFIG_FILE))
+  if (LittleFS.exists(CONFIG_FILE))
   {
     // file exists, reading and loading
     Serial.println("reading config file");
 
-    File configFile = SPIFFS.open(CONFIG_FILE, "r");
+    File configFile = LittleFS.open(CONFIG_FILE, "r");
     if (configFile)
     {
       // Deserialize the JSON document
@@ -351,39 +351,6 @@ void net_setup()
     Serial.println(WiFi.softAPIP());
   }
 
-  ArduinoOTA.setHostname(jconf["hostname"] | hostName);
-  ArduinoOTA.begin();
-
-  // Send OTA events to the browser
-  ArduinoOTA.onStart([]()
-                     { events.send("Update Start", "ota"); });
-  ArduinoOTA.onEnd([]()
-                   { events.send("Update End", "ota"); });
-  ArduinoOTA.onProgress(
-      [](unsigned int progress, unsigned int total)
-      {
-        char p[32];
-        sprintf(p, "Progress: %u%%\n", (progress / (total / 100)));
-        events.send(p, "ota");
-      });
-  ArduinoOTA.onError(
-      [](ota_error_t error)
-      {
-        if (error == OTA_AUTH_ERROR)
-          events.send("Auth Failed", "ota");
-        else if (error == OTA_BEGIN_ERROR)
-          events.send("Begin Failed", "ota");
-        else if (error == OTA_CONNECT_ERROR)
-          events.send("Connect Failed", "ota");
-        else if (error == OTA_RECEIVE_ERROR)
-          events.send("Recieve Failed", "ota");
-        else if (error == OTA_END_ERROR)
-          events.send("End Failed", "ota");
-      });
-
-  Serial.print("ArduinoOTA hosthame: ");
-  Serial.println(ArduinoOTA.getHostname());
-
   MDNS.addService("http", "tcp", 80);
 
   ws.onEvent(onWsEvent);
@@ -394,85 +361,13 @@ void net_setup()
                    { client->send("hello!", NULL, millis(), 1000); });
   server.addHandler(&events);
 
-  server.addHandler(new SPIFFSEditor(SPIFFS, "", ""));
+  server.addHandler(new SPIFFSEditor("", ""));
 
   server.on("/heap", HTTP_GET,
             [](AsyncWebServerRequest *request)
             {
               request->send(200, "text/plain", String(ESP.getFreeHeap()));
             });
-
-  // Simple Firmware Update Form
-  server.on("/update", HTTP_GET,
-            [](AsyncWebServerRequest *request)
-            {
-              const char update_html_data[] PROGMEM = R"html(<!DOCTYPE html>
-<html>
-<head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Firmware Update</title>
-  </body>
-</head>
-<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>
-<body>
-</html>)html";
-              request->send(200, "text/html", update_html_data);
-            });
-
-  server.on(
-      "/update", HTTP_POST,
-      [](AsyncWebServerRequest *request)
-      {
-        AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", shouldReboot ? "OK" : "FAIL");
-        response->addHeader("Connection", "close");
-        request->send(response);
-      },
-      [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
-      {
-        if (!index)
-        {
-          Serial.print("Update ");
-          // size_t content_len = request->contentLength();
-          //  if filename includes spiffs, update the spiffs partition
-          int cmd = (filename.indexOf("spiffs") > -1) ? U_SPIFFS : U_FLASH;
-          Serial.println((cmd == U_SPIFFS) ? "SPIFFS" : "FLASH");
-
-          if (!Update.begin(UPDATE_SIZE_UNKNOWN, cmd))
-          {
-            {
-              Update.printError(Serial);
-            }
-          }
-        }
-
-        if (!Update.hasError())
-        {
-          if (Update.write(data, len) != len)
-          {
-            Update.printError(Serial);
-          }
-        }
-
-        if (final)
-        {
-          AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "Please wait while the device reboots");
-          response->addHeader("Refresh", "20");
-          response->addHeader("Location", "/");
-          request->send(response);
-          if (!Update.end(true))
-          {
-            Update.printError(Serial);
-          }
-          else
-          {
-            Serial.println("Update complete");
-            Serial.flush();
-          }
-
-          shouldReboot = !Update.hasError();
-        }
-      });
 
   server.rewrite("/e", "/edit.htm");
 
@@ -499,16 +394,12 @@ void net_setup()
 </head><body>)html");
               int i = 0;
               eeprom_block_t eeb;
-              while (i < 128)
+              while (i < 129)
               {
-                get_ee_data(&eeb, i);
+                if (get_ee_data(&eeb, i) != 0)
+                  break;
                 int *j = (int *)&eeb;
-                while (j < (int *)((uint8_t *)&eeb + sizeof(eeprom_block_t)))
-                {
-                  response->printf("%08X,", *j);
-                  j++;
-                }
-                response->print("<br>");
+                response->printf("%3d) %08X,%08X,%08X,%08X<br>", i, *j, *(j + 1), *(j + 2), *(j + 3));
                 i++;
               }
 
@@ -520,13 +411,15 @@ void net_setup()
             [](AsyncWebServerRequest *request)
             {
               AsyncResponseStream *response = request->beginResponseStream("text/html");
-              response->print(R"html(<!DOCTYPE html>
+              response->printf(R"html(<!DOCTYPE html>
 <html>
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Woody</title>
-</head><body>)html");
+	<title>%s</title>
+</head><body>)html",
+                               jconf["wifissid"] | hostName);
+
               response->print(R"html(<table>
 <thead>
 <tr>
@@ -544,8 +437,9 @@ void net_setup()
 
               while (i++ < max)
               {
-                get_ee_data(&eeb, num);
-                //printf("%d: %d\n", num, eeb.total);
+                if (get_ee_data(&eeb, num) != 0)
+                  break;
+                // printf("%d: %d\n", num, eeb.total);
 
                 if (eeb.total >= 0)
                 {
@@ -558,12 +452,12 @@ void net_setup()
               };
 
               response->printf("</tbody></table><p><b>Общий счетчик деталей:&nbsp;%d</b></p>", ee.total);
-              //response->printf("<p><b>Общее время работы:&nbsp;%4d:%02d</b></p>", (ee.time / 60) / 60, (ee.time / 60) % 60);
+              // response->printf("<p><b>Общее время работы:&nbsp;%4d:%02d</b></p>", (ee.time / 60) / 60, (ee.time / 60) % 60);
               response->print(R"html(</body></html>)html");
               request->send(response);
             });
 
-  server.serveStatic("/", SPIFFS, "/");
+  server.serveStatic("/", LittleFS, "/");
 
   server.onNotFound(
       [](AsyncWebServerRequest *request)
@@ -641,6 +535,7 @@ void net_setup()
           Serial.printf("BodyEnd: %u\n", total);
       });
 
+  AsyncElegantOTA.begin(&server);
   server.begin();
 
   st.begin();
@@ -649,8 +544,6 @@ void net_setup()
 
 void net_process()
 {
-  ArduinoOTA.handle();
-
   if (shouldReboot == true)
   {
     Serial.println("Restarting...");

@@ -2,7 +2,7 @@
 #define NETW_H
 
 #include <Arduino.h>
-#include <SPIFFS.h>
+#include <stdint.h>
 
 void net_process();
 
