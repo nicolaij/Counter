@@ -1,8 +1,21 @@
 #include "network.h"
+<<<<<<< HEAD
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 //#include <ArduinoOTA.h>
 #include "LittleFS.h" // LittleFS is declared
+=======
+#include "LittleFS.h" // LittleFS is declared
+
+#ifdef ESP8266
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#endif
+#ifdef ESP32
+#include <WiFi.h>
+#include <ESPmDNS.h>
+#endif
+>>>>>>> 573885b (Update esp8266 config)
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include <SPIFFSEditor.h>
@@ -360,9 +373,18 @@ void net_setup()
   events.onConnect([](AsyncEventSourceClient *client)
                    { client->send("hello!", NULL, millis(), 1000); });
   server.addHandler(&events);
+<<<<<<< HEAD
 
   server.addHandler(new SPIFFSEditor("", ""));
 
+=======
+#ifdef ESP32
+  server.addHandler(new SPIFFSEditor(LittleFS, "", ""));
+#endif
+#ifdef ESP8266
+  server.addHandler(new SPIFFSEditor("", "", LittleFS));
+#endif
+>>>>>>> 573885b (Update esp8266 config)
   server.on("/heap", HTTP_GET,
             [](AsyncWebServerRequest *request)
             {
@@ -382,16 +404,18 @@ void net_setup()
             [](AsyncWebServerRequest *request)
             {
               AsyncResponseStream *response = request->beginResponseStream("text/html");
-              response->print(R"html(<!DOCTYPE html>
+              response->printf(R"html(<!DOCTYPE html>
 <html>
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Woody</title>
+	<title>%s</title>
   <style>
   body { font-family: monospace; }
   </style>
-</head><body>)html");
+</head><body>)html",
+                               jconf["wifissid"] | hostName);
+
               int i = 0;
               eeprom_block_t eeb;
               while (i < 129)
@@ -514,7 +538,7 @@ void net_setup()
         }
         request->send(404);
       });
-
+/*
   server.onFileUpload(
       [](AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final)
       {
@@ -534,7 +558,11 @@ void net_setup()
         if (index + len == total)
           Serial.printf("BodyEnd: %u\n", total);
       });
+<<<<<<< HEAD
 
+=======
+*/
+>>>>>>> 573885b (Update esp8266 config)
   AsyncElegantOTA.begin(&server);
   server.begin();
 
