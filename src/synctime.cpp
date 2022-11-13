@@ -7,10 +7,6 @@
 #include <time.h>
 #include "sys/time.h"
 
-<<<<<<< HEAD
-#define SDA_PIN D2
-#define SCL_PIN D1
-=======
 #ifdef ESP32
 #define SDA_PIN 21
 #define SCL_PIN 22
@@ -23,7 +19,6 @@
 #define SCL_PIN D1
 #endif
 
->>>>>>> 573885b (Update esp8266 config)
 
 #define countof(a) (sizeof(a) / sizeof(a[0]))
 

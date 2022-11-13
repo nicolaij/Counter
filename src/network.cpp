@@ -1,10 +1,4 @@
 #include "network.h"
-<<<<<<< HEAD
-#include <ESP8266WiFi.h>
-#include <ESP8266mDNS.h>
-//#include <ArduinoOTA.h>
-#include "LittleFS.h" // LittleFS is declared
-=======
 #include "LittleFS.h" // LittleFS is declared
 
 #ifdef ESP8266
@@ -15,7 +9,6 @@
 #include <WiFi.h>
 #include <ESPmDNS.h>
 #endif
->>>>>>> 573885b (Update esp8266 config)
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include <SPIFFSEditor.h>
@@ -373,18 +366,12 @@ void net_setup()
   events.onConnect([](AsyncEventSourceClient *client)
                    { client->send("hello!", NULL, millis(), 1000); });
   server.addHandler(&events);
-<<<<<<< HEAD
-
-  server.addHandler(new SPIFFSEditor("", ""));
-
-=======
 #ifdef ESP32
   server.addHandler(new SPIFFSEditor(LittleFS, "", ""));
 #endif
 #ifdef ESP8266
   server.addHandler(new SPIFFSEditor("", "", LittleFS));
 #endif
->>>>>>> 573885b (Update esp8266 config)
   server.on("/heap", HTTP_GET,
             [](AsyncWebServerRequest *request)
             {
@@ -558,11 +545,7 @@ void net_setup()
         if (index + len == total)
           Serial.printf("BodyEnd: %u\n", total);
       });
-<<<<<<< HEAD
-
-=======
 */
->>>>>>> 573885b (Update esp8266 config)
   AsyncElegantOTA.begin(&server);
   server.begin();
 

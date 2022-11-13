@@ -1,8 +1,5 @@
 #include <Arduino.h>
-<<<<<<< HEAD
-=======
 //#include <esp_task_wdt.h>
->>>>>>> 573885b (Update esp8266 config)
 #include "network.h"
 #include "synctime.h"
 #include <Bounce2.h>
@@ -15,15 +12,9 @@
 //#define IN4_PIN D5
 
 // OUT
-<<<<<<< HEAD
-#define LEDPIN D4
-#define R1_PIN D6
-#define R2_PIN D5
-=======
 #define R1_PIN 32
 #define R2_PIN 33
 #endif
->>>>>>> 573885b (Update esp8266 config)
 
 #ifdef ESP8266
 // IN
@@ -45,8 +36,6 @@ unsigned long buttons_time[4] = {0, 0, 0, 0};
 void setup()
 {
   Serial.begin(115200);
-<<<<<<< HEAD
-=======
 #ifdef ESP32
   Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
   Serial.printf("SPIRam Total heap %d, SPIRam Free Heap %d\n", ESP.getPsramSize(), ESP.getFreePsram());
@@ -54,17 +43,13 @@ void setup()
   Serial.printf("Flash Size %d, Flash Speed %d\n", ESP.getFlashChipSize(), ESP.getFlashChipSpeed());
 #endif
 #ifdef ESP8266
->>>>>>> 573885b (Update esp8266 config)
   Serial.printf("\n\nSdk version: %s\n", ESP.getSdkVersion());
   Serial.printf("Core Version: %s\n", ESP.getCoreVersion().c_str());
   Serial.printf("Boot Version: %u\n", ESP.getBootVersion());
   Serial.printf("Boot Mode: %u\n", ESP.getBootMode());
   Serial.printf("CPU Frequency: %u MHz\n", ESP.getCpuFreqMHz());
   Serial.printf("Reset reason: %s\n", ESP.getResetReason().c_str());
-<<<<<<< HEAD
-=======
 #endif
->>>>>>> 573885b (Update esp8266 config)
 
   net_setup();
 
@@ -133,10 +118,7 @@ void loop()
 #ifdef LEDPIN
     digitalWrite(LEDPIN, 0);
 #endif
-<<<<<<< HEAD
-=======
     inc_ee_data();
->>>>>>> 573885b (Update esp8266 config)
   };
 
 #ifdef IN3_PIN
